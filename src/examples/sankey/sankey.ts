@@ -1,5 +1,4 @@
 import * as d3 from 'd3'
-import { sankey, sankeyLinkHorizontal, sankeyLeft } from 'd3-sankey'
 import { handleErrors } from '../common/utils'
 
 import {
@@ -7,6 +6,7 @@ import {
   Link,
   Looker,
   LookerChartUtils,
+  VisData,
   VisualizationDefinition
 } from '../types/types'
 
@@ -45,7 +45,7 @@ const vis: Sankey = {
     }
   },
   // Set up the initial state of the visualization
-  create (element, config) {
+  create(element, config) {
     element.innerHTML = `
       <style>
       .node,
@@ -57,7 +57,7 @@ const vis: Sankey = {
     this.svg = d3.select(element).append('svg')
   },
   // Render in response to the data or settings changing
-  updateAsync (data, element, config, queryResponse, details, doneRendering) {
+  updateAsync(data: VisData, element, config, queryResponse, details, doneRendering) {
     console.log(data, element, config, queryResponse, details)
     if (!handleErrors(this, queryResponse, {
       min_pivots: 0, max_pivots: 0,
@@ -74,38 +74,13 @@ const vis: Sankey = {
       .attr('height', '100%')
       .append('g')
 
+
     const dimensions = queryResponse.fields.dimension_like
     const measure = queryResponse.fields.measure_like[0]
 
-    //  The standard d3.ScaleOrdinal<string, {}>, causes error
-    // `no-inferred-empty-object-type  Explicit type parameter needs to be provided to the function call`
-    // https://stackoverflow.com/questions/31564730/typescript-with-d3js-with-definitlytyped
-    const color = d3.scaleOrdinal<string[], string[]>()
-      .range(config.color_range || vis.options.color_range.default)
 
     const defs = svg.append('defs')
 
-    const sankeyInst = sankey()
-      .nodeAlign(sankeyLeft)
-      .nodeWidth(10)
-      .nodePadding(12)
-      .extent([[1, 1], [width - 1, height - 6]])
-
-    // TODO: Placeholder until @types catches up with sankey
-    const newSankeyProps: any = sankeyInst
-    newSankeyProps.nodeSort(null)
-
-    let link = svg.append('g')
-      .attr('class', 'links')
-      .attr('fill', 'none')
-      .attr('stroke', '#fff')
-      .selectAll('path')
-
-    let node = svg.append('g')
-      .attr('class', 'nodes')
-      .attr('font-family', 'sans-serif')
-      .attr('font-size', 10)
-      .selectAll('g')
 
     const graph: any = {
       nodes: [],
@@ -115,158 +90,164 @@ const vis: Sankey = {
     const nodes = d3.set()
 
     data.forEach(function (d: any) {
-      // variable number of dimensions
-      const path: any[] = []
-      for (const dim of dimensions) {
-        if (d[dim.name].value === null && !config.show_null_points) break
-        path.push(d[dim.name].value + '')
+
+      // // variable number of dimensions
+      // const path: any[] = []
+      // for (const dim of dimensions) {
+      //   if (d[dim.name].value === null && !config.show_null_points) break
+      //   path.push(d[dim.name].value + '')
+      // }
+      // path.forEach(function (p: any, i: number) {
+      //   if (i === path.length - 1) return
+      //   const source: any = path.slice(i, i + 1)[0] + i + `len:${path.slice(i, i + 1)[0].length}`
+      //   const target: any = path.slice(i + 1, i + 2)[0] + (i + 1) + `len:${path.slice(i + 1, i + 2)[0].length}`
+      //   nodes.add(source)
+      //   nodes.add(target)
+      //   // Setup drill links
+      //   const drillLinks: Link[] = []
+      //   for (const key in d) {
+      //     if (d[key].links) {
+      //       d[key].links.forEach((link: Link) => { drillLinks.push(link) })
+      //     }
+      //   }
+
+      //   graph.links.push({
+      //     'drillLinks': drillLinks,
+      //     'source': source,
+      //     'target': target,
+      //     'value': +d[measure.name].value
+      //   })
+      // })
+    })
+
+
+    const strokeWidth = 1.5;
+    const margin = { top: 0, bottom: 20, left: 30, right: 20 };
+    const chart = svg.append("g").attr("transform", `translate(${margin.left},0)`);
+    const grp = chart
+      .append("g")
+      .attr("transform", `translate(-${margin.left - strokeWidth},-${margin.top})`);
+
+    // TODO: override
+    type DummyData = { year: Number, popularity: Number }
+
+    const dataa: DummyData[] = [
+      {
+        "year": 2000,
+        "popularity": 50
+      },
+      {
+        "year": 2001,
+        "popularity": 150
+      },
+      {
+        "year": 2002,
+        "popularity": 200
+      },
+      {
+        "year": 2003,
+        "popularity": 130
+      },
+      {
+        "year": 2004,
+        "popularity": 240
+      },
+      {
+        "year": 2005,
+        "popularity": 380
+      },
+      {
+        "year": 2006,
+        "popularity": 420
       }
-      path.forEach(function (p: any, i: number) {
-        if (i === path.length - 1) return
-        const source: any = path.slice(i, i + 1)[0] + i + `len:${path.slice(i, i + 1)[0].length}`
-        const target: any = path.slice(i + 1, i + 2)[0] + (i + 1) + `len:${path.slice(i + 1, i + 2)[0].length}`
-        nodes.add(source)
-        nodes.add(target)
-        // Setup drill links
-        const drillLinks: Link[] = []
-        for (const key in d) {
-          if (d[key].links) {
-            d[key].links.forEach((link: Link) => { drillLinks.push(link) })
-          }
-        }
+    ]
 
-        graph.links.push({
-          'drillLinks': drillLinks,
-          'source': source,
-          'target': target,
-          'value': +d[measure.name].value
-        })
-      })
-    })
 
-    const nodesArray = nodes.values()
+    // Create scales
+    const yScale = d3
+      .scaleLinear()
+      .range([height, 0])
+      .domain([0, (d3.max(dataa, (dataPoint: DummyData) => dataPoint.popularity) || 0)]);
 
-    graph.links.forEach(function (d: Cell) {
-      d.source = nodesArray.indexOf(d.source)
-      d.target = nodesArray.indexOf(d.target)
-    })
+    const d = d3.extent(dataa, (dataPoint: DummyData) => dataPoint.year)
+    const xScale = d3
+      .scaleLinear()
+      .range([0, width])
+      .domain([Number(d[0]), Number(d[1])])
 
-    graph.nodes = nodes.values().map((d: any) => {
-      return {
-        name: d.slice(0, d.split('len:')[1])
-      }
-    })
+    const area = d3
+      .area()
+      .x((dataPoint: DummyData) => xScale(dataPoint.year))
+      .y0(height)
+      .y1((dataPoint: DummyData) => yScale(dataPoint.popularity));
 
-    sankeyInst(graph)
+    // Add area
+    grp
+      .append("path")
+      .attr("transform", `translate(${margin.left},0)`)
+      .datum(data)
+      .style("fill", "url(#svgGradient)")
+      .attr("stroke", "steelblue")
+      .attr("stroke-linejoin", "round")
+      .attr("stroke-linecap", "round")
+      .attr("stroke-width", strokeWidth)
+      .attr("d", area)
+    //.on("mousemove", handleMouseMove)
+    // .on('mouseout', handleMouseOut);
 
-    link = link
-      .data(graph.links)
-      .enter().append('path')
-      .attr('class', 'link')
-      .attr('d', function (d: any) { return 'M' + -10 + ',' + -10 + sankeyLinkHorizontal()(d) })
-      .style('opacity', 0.4)
-      .attr('stroke-width', function (d: Cell) { return Math.max(1, d.width) })
-      .on('mouseenter', function (this: any, d: Cell) {
-        svg.selectAll('.link')
-          .style('opacity', 0.05)
-        d3.select(this)
-          .style('opacity', 0.7)
-        svg.selectAll('.node')
-          .style('opacity', function (p: any) {
-            if (p === d.source) return 1
-            if (p === d.target) return 1
-            return 0.5
-          })
-      })
-      .on('click', function (this: any, d: Cell) {
-        // Add drill menu event
-        const coords = d3.mouse(this)
-        const event: object = { pageX: coords[0], pageY: coords[1] }
-        LookerCharts.Utils.openDrillMenu({
-          links: d.drillLinks,
-          event: event
-        })
-      })
-      .on('mouseleave', function (d: Cell) {
-        d3.selectAll('.node').style('opacity', 1)
-        d3.selectAll('.link').style('opacity', 0.4)
-      })
+    // Add the X Axis
+    chart
+      .append("g")
+      .attr("transform", `translate(0,${height})`)
+      .call(
+        d3
+          .axisBottom(xScale)
+          .ticks(data.length)
+          .tickFormat(d3.format(""))
+      );
 
-    // gradients https://bl.ocks.org/micahstubbs/bf90fda6717e243832edad6ed9f82814
-    link.style('stroke', function (d: Cell, i: number) {
+    // Add the Y Axis
+    chart
+      .append("g")
+      .attr("transform", `translate(0, 0)`)
+      .call(d3.axisLeft(yScale));
 
-      // make unique gradient ids
-      const gradientID = 'gradient' + i
 
-      const startColor = color(d.source.name.replace(/ .*/, ''))
-      const stopColor = color(d.target.name.replace(/ .*/, ''))
 
-      const linearGradient = defs.append('linearGradient')
-        .attr('id', gradientID)
+    // Add total value to the tooltip
+    const totalSum = data.reduce((total, dp) => +total + +dp.popularity, 0);
+    d3.select('.tooltip .totalValue').text(totalSum);
 
-      linearGradient.selectAll('stop')
-        .data([
-          { offset: '10%', color: startColor },
-          { offset: '90%', color: stopColor }
-        ])
-        .enter().append('stop')
-        .attr('offset', function (d: Cell) {
-          return d.offset
-        })
-        .attr('stop-color', function (d: Cell) {
-          return d.color
-        })
 
-      return 'url(#' + gradientID + ')'
-    })
+    const gradient = defs.append("linearGradient").attr("id", "svgGradient");
+    const gradientResetPercentage = "50%";
 
-    node = node
-      .data(graph.nodes)
-      .enter().append('g')
-      .attr('class', 'node')
-      .on('mouseenter', function (d: Cell) {
-        svg.selectAll('.link')
-          .style('opacity', function (p: any) {
-            if (p.source === d) return 0.7
-            if (p.target === d) return 0.7
-            return 0.05
-          })
-      })
-      .on('mouseleave', function (d: Cell) {
-        d3.selectAll('.link').style('opacity', 0.4)
-      })
+    gradient
+      .append("stop")
+      .attr("class", "start")
+      .attr("offset", gradientResetPercentage)
+      .attr("stop-color", "lightblue");
 
-    node.append('rect')
-      .attr('x', function (d: Cell) { return d.x0 })
-      .attr('y', function (d: Cell) { return d.y0 })
-      .attr('height', function (d: Cell) { return Math.abs(d.y1 - d.y0) })
-      .attr('width', function (d: Cell) { return Math.abs(d.x1 - d.x0) })
-      .attr('fill', function (d: Cell) { return color(d.name.replace(/ .*/, '')) })
-      .attr('stroke', '#555')
+    gradient
+      .append("stop")
+      .attr("class", "start")
+      .attr("offset", gradientResetPercentage)
+      .attr("stop-color", "darkblue");
 
-    node.append('text')
-      .attr('x', function (d: Cell) { return d.x0 - 6 })
-      .attr('y', function (d: Cell) { return (d.y1 + d.y0) / 2 })
-      .attr('dy', '0.35em')
-      .style('font-weight', 'bold')
-      .attr('text-anchor', 'end')
-      .style('fill', '#222')
-      .text(function (d: Cell) {
-        switch (config.label_type) {
-          case 'name':
-            return d.name
-          case 'name_value':
-            return `${d.name} (${d.value})`
-          default:
-            return ''
-        }
-      })
-      .filter(function (d: Cell) { return d.x0 < width / 2 })
-      .attr('x', function (d: Cell) { return d.x1 + 6 })
-      .attr('text-anchor', 'start')
+    gradient
+      .append("stop")
+      .attr("class", "end")
+      .attr("offset", gradientResetPercentage)
+      .attr("stop-color", "darkblue")
+      .attr("stop-opacity", 1);
 
-    node.append('title')
-      .text(function (d: Cell) { return d.name + '\n' + d.value })
+    gradient
+      .append("stop")
+      .attr("class", "end")
+      .attr("offset", gradientResetPercentage)
+      .attr("stop-color", "lightblue");
+
+    const bisectDate = d3.bisector((dataPoint: DummyData) => dataPoint.year).left;
     doneRendering()
   }
 }
