@@ -87,7 +87,7 @@ const vis: Sankey = {
       links: []
     }
 
-    const nodes = d3.set()
+   // const nodes = d3.set()
 
     data.forEach(function (d: any) {
 
@@ -163,7 +163,7 @@ const vis: Sankey = {
     ]
 
 
-    // Create scales
+   // Create scales
     const yScale = d3
       .scaleLinear()
       .range([height, 0])
@@ -175,11 +175,18 @@ const vis: Sankey = {
       .range([0, width])
       .domain([Number(d[0]), Number(d[1])])
 
+      
+    // const area = d3
+    //   .area()
+    //   .x(((dataPoint: DummyData) => xScale(dataPoint.year))())
+    //   .y0(height)
+    //   .y1((dataPoint: DummyData) => yScale(dataPoint.popularity));
+
     const area = d3
       .area()
-      .x((dataPoint: DummyData) => xScale(dataPoint.year))
+      .x(10)
       .y0(height)
-      .y1((dataPoint: DummyData) => yScale(dataPoint.popularity));
+      .y1(20);
 
     // Add area
     grp
